@@ -1,0 +1,23 @@
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  letter-spacing: -0.01em;
+}
+
+.header p {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+}
+
+.section {
+  display: block;
+}

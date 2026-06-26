@@ -1,0 +1,10 @@
+{
+    "permissions": {
+        "deny": [
+            "Read(**/appsettings*.json)",
+            "Read(**/.env)",
+            "Read(**/.env.*)",
+            "Read(**/*.env)"
+        ]
+    }
+}

@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Brand accents */
+  --dt-purple: #756af6;
+  --dt-pink: #cc7dda;
+  --dt-peach: #f6be85;
+
+  /* Surfaces (dark) */
+  --dt-bg: #0d1130;
+  --dt-surface: #1a1d3a;
+  --dt-surface-alt: #262c57;
+  --dt-surface-deep: #221f41;
+
+  /* Text */
+  --dt-text: #ffffff;
+  --dt-text-body: #c2ceed;
+  --dt-text-muted: #8e94b8;
+  --dt-text-subtle: #8b99c8;
+
+  /* Functional */
+  --dt-success: #10b981;
+  --dt-error: #ff6b6b;
+
+  /* Signature gradient */
+  --dt-gradient: linear-gradient(135deg, #756af6, #cc7dda 50%, #f6be85);
+
+  /* Type */
+  --dt-font-sans: 'Poppins', sans-serif;
+  --dt-font-mono: 'JetBrains Mono', monospace;
+
+  font-family: var(--dt-font-sans);
+  color: var(--dt-text-body);
+  background: var(--dt-bg);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--dt-bg);
+  color: var(--dt-text-body);
+  font-family: var(--dt-font-sans);
+}

@@ -1,0 +1,82 @@
+.form {
+  background: var(--dt-surface);
+  border: 1px solid var(--dt-surface-alt);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.title {
+  margin: 0 0 1rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--dt-text);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+  color: var(--dt-text-body);
+}
+
+.field input,
+.field select {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--dt-surface-alt);
+  border-radius: 8px;
+  font: inherit;
+  background: var(--dt-surface-deep);
+  color: var(--dt-text);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--dt-purple);
+  box-shadow: 0 0 0 3px rgba(117, 106, 246, 0.3);
+}
+
+.actions {
+  margin-top: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.actions button {
+  padding: 0.6rem 1.1rem;
+  border: 0;
+  border-radius: 10px;
+  background: var(--dt-gradient);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 120ms ease, opacity 120ms ease;
+}
+
+.actions button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.actions button:disabled {
+  background: var(--dt-surface-alt);
+  color: var(--dt-text-subtle);
+  cursor: not-allowed;
+}
+
+.error {
+  margin: 0;
+  color: var(--dt-error);
+  font-size: 0.875rem;
+}
