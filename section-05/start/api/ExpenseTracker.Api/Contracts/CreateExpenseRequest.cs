@@ -1,3 +1,7 @@
 namespace ExpenseTracker.Api.Contracts;
 
-public sealed record CreateExpenseRequest(decimal Amount, string? Description, DateOnly Date);
+public sealed record CreateExpenseRequest(
+    decimal Amount,
+    string? Description,
+    DateOnly Date,
+    string? Currency = null);
