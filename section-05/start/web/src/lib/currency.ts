@@ -19,3 +19,7 @@ function formatterFor(currency: string): Intl.NumberFormat {
 export function formatCurrency(amount: number, currency: string): string {
   return formatterFor(currency).format(amount);
 }
+
+export function currencySymbol(currency: string): string {
+  return formatterFor(currency).formatToParts(0).find((part) => part.type === "currency")?.value ?? currency;
+}
