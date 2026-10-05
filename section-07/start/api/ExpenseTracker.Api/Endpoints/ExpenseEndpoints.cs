@@ -41,16 +41,19 @@ public static class ExpenseEndpoints
     {
         var errors = new Dictionary<string, string[]>();
 
-        if (request.Amount <= 0)
+        var amount = decimal.Round(request.Amount, 2, MidpointRounding.AwayFromZero);
+        var description = request.Description?.Trim();
+
+        if (amount <= 0)
         {
             errors["Amount"] = ["Amount must be greater than zero."];
         }
 
-        if (string.IsNullOrWhiteSpace(request.Description))
+        if (string.IsNullOrEmpty(description))
         {
             errors["Description"] = ["Description is required."];
         }
-        else if (request.Description.Length > 200)
+        else if (description.Length > 200)
         {
             errors["Description"] = ["Description must be 200 characters or fewer."];
         }
@@ -76,8 +79,8 @@ public static class ExpenseEndpoints
 
         var expense = new Expense
         {
-            Amount = decimal.Round(request.Amount, 2, MidpointRounding.AwayFromZero),
-            Description = request.Description!.Trim(),
+            Amount = amount,
+            Description = description!,
             Date = request.Date,
             Currency = currency,
         };
@@ -132,16 +135,32 @@ public static class ExpenseEndpoints
         return Results.Ok(expenses);
     }
 
+    // `today` is the caller's local calendar date; the server's UTC date can lag or lead it.
     private static async Task<IResult> ListRecentAsync(
         ExpenseDbContext db,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? today = null)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var since = today.AddDays(-7);
+        var errors = new Dictionary<string, string[]>();
+        var todayDate = ParseDateFilter(today, "today", errors);
+
+        // The window reaches back 7 days; anything earlier would underflow DateOnly.MinValue.
+        if (todayDate is { } d && d < DateOnly.MinValue.AddDays(7))
+        {
+            errors["today"] = ["today is out of range."];
+        }
+
+        if (errors.Count > 0)
+        {
+            return Results.ValidationProblem(errors);
+        }
+
+        var until = todayDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var since = until.AddDays(-7);
 
         var query = db.Expenses.AsNoTracking();
 
-        query = query.Where(e => e.Date >= since && e.Date <= today);
+        query = query.Where(e => e.Date >= since && e.Date <= until);
 
         var expenses = await query
             .OrderByDescending(e => e.Date)

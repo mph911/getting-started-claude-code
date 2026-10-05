@@ -13,7 +13,8 @@ An Expense is **immutable once created**: there is no edit or delete endpoint. I
 | Field         | Type             | Meaning                                                                                                  |
 | ------------- | ---------------- | -------------------------------------------------------------------------------------------------------- |
 | `Id`          | `Guid`           | Stable identifier. Generated client-side on the domain object, never reused.                             |
-| `Amount`      | `decimal(18, 2)` | How much was spent, in the user's implicit currency (see *Currency*). Always **positive**.               |
+| `Amount`      | `decimal(18, 2)` | How much was spent, in the expense's `Currency`. Always **positive**.                                    |
+| `Currency`    | `string(3)`      | ISO 4217 code the `Amount` is in. One of `EUR`, `USD`, `GBP`; defaults to `EUR`. Required.               |
 | `Description` | `string`         | Free-text label, 1–200 chars, trimmed. Required.                                                         |
 | `Date`        | `DateOnly`       | The **spent-on** date — when the money left the user's pocket. Not when the row was entered.             |
 | `CreatedAt`   | `DateTimeOffset` | When the row was inserted, in UTC. Set by Postgres (`now() at time zone 'utc'`), never assigned in C#.   |
@@ -29,23 +30,31 @@ If you find yourself reaching for `CreatedAt` in a user-facing list or filter, y
 
 ## Amount
 
-A positive `decimal` with exactly **2 decimal places** (`HasPrecision(18, 2)`). Inputs are rounded half-away-from-zero on create — `12.345` becomes `12.35`, `-0` is rejected as `<= 0`.
+A positive `decimal` with exactly **2 decimal places** (`HasPrecision(18, 2)`). Inputs are rounded half-away-from-zero on create — `12.345` becomes `12.35` — and the **rounded** value is what's validated, so `0.004` (rounds to `0.00`) and `-0` are both rejected as `<= 0`.
 
 There is no concept of debit/credit or sign: every Expense is a spend. Refunds, reimbursements, and income are **out of scope** in the current model. If we add them, they'll be a separate aggregate (e.g. `Income`) or an `ExpenseKind` discriminator — not a negative `Amount`.
 
 ## Currency
 
-Currently **implicit and single-currency**. The schema has no currency column; the app assumes the user tracks expenses in one currency and is responsible for not mixing. When a multi-currency feature is needed, treat it as a schema change (add `Currency` as ISO 4217 on `Expense`) rather than overloading `Description`.
+Every Expense carries its own `Currency`: an uppercase ISO 4217 code, stored as `varchar(3)`.
+
+- **Allowed values:** `EUR`, `USD`, `GBP` (`Domain/Currencies.Allowed`). Anything else is rejected with a validation error on `Currency`. Adding a currency means extending that set and the SPA's `lib/currency.ts` together.
+- **Default:** `EUR` when the request omits `Currency` or sends it empty/whitespace. Rows that existed before the column was added were backfilled to `EUR`.
+- **Normalization:** input is trimmed and upper-cased on create — `" usd "` is stored as `USD`.
+
+There is **no conversion** between currencies: amounts in different currencies are not comparable and must not be summed together. Exchange rates, a "home currency", and cross-currency totals are out of scope.
 
 ## Description
 
-Free-text, 1–200 characters. Trimmed on create (leading/trailing whitespace removed). Whitespace-only descriptions are rejected as missing.
+Free-text, 1–200 characters. Trimmed on create (leading/trailing whitespace removed), and the length limit applies to the **trimmed** text. Whitespace-only descriptions are rejected as missing.
 
 We do **not** parse descriptions for categories, tags, or merchants — they're opaque strings. Don't add regex-based categorization without a design discussion; the right move is a real `Category` field.
 
 ## Date semantics on the wire
 
 `Date` is serialized as an ISO `YYYY-MM-DD` string in both request and response JSON. It is **not** a JS `Date` object, not a timestamp, and carries no time-of-day or time zone information. Two users in different time zones recording an expense for "today" will produce different `Date` values — that's intentional; the date is the user's local calendar date, captured client-side.
+
+The same applies to "today" in queries: the server's UTC date can be a day behind or ahead of the user's. `GET /api/expenses/recent` therefore takes the caller's local date as `?today=YYYY-MM-DD` (falling back to the UTC date when omitted) and returns `today - 7` through `today`, inclusive. In the SPA, derive local dates with `lib/date.ts` `localToday()` — never `new Date().toISOString()`, which yields the UTC date.
 
 `CreatedAt` is serialized as an ISO-8601 timestamp in UTC.
 

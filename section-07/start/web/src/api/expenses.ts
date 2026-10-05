@@ -1,4 +1,5 @@
 import type { Currency } from "../lib/currency";
+import { localToday } from "../lib/date";
 
 export interface Expense {
   id: string;
@@ -50,7 +51,8 @@ export async function listExpenses(
 }
 
 export async function listRecentExpenses(signal?: AbortSignal): Promise<Expense[]> {
-  const response = await fetch(`${ENDPOINT}/recent`, { signal });
+  const params = new URLSearchParams({ today: localToday() });
+  const response = await fetch(`${ENDPOINT}/recent?${params}`, { signal });
   if (!response.ok) {
     throw new Error(await readError(response));
   }

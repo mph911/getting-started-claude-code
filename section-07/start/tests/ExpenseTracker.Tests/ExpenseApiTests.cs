@@ -214,6 +214,81 @@ public sealed class ExpenseApiTests(PostgresApiFactory factory)
         Assert.True(errors.TryGetProperty("Currency", out _));
     }
 
+    [Fact]
+    public async Task Should_return_400_problem_details_when_amount_rounds_to_zero()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = factory.CreateClient();
+        var payload = new CreateExpenseRequest(0.004m, "Rounds to zero", new DateOnly(2026, 4, 5));
+
+        var response = await client.PostAsJsonAsync("/api/expenses", payload, ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions, ct);
+        Assert.True(problem.GetProperty("errors").TryGetProperty("Amount", out _));
+    }
+
+    [Fact]
+    public async Task Should_accept_description_that_fits_200_chars_after_trimming()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = factory.CreateClient();
+        var text = new string('x', 200);
+        var payload = new CreateExpenseRequest(1m, $"   {text}   ", new DateOnly(2026, 4, 6));
+
+        var response = await client.PostAsJsonAsync("/api/expenses", payload, ct);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var created = await response.Content.ReadFromJsonAsync<ExpenseResponse>(JsonOptions, ct);
+        Assert.Equal(text, created?.Description);
+    }
+
+    [Fact]
+    public async Task Should_use_client_supplied_today_when_listing_recent()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = factory.CreateClient();
+        // A client date ahead of the server's UTC date, e.g. just after midnight east of UTC.
+        var clientToday = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(1);
+
+        var onClientToday = await CreateExpenseAsync(client, new(1m, "Recent client today", clientToday), ct);
+        var tooOld = await CreateExpenseAsync(client, new(2m, "Recent client too old", clientToday.AddDays(-8)), ct);
+
+        var list = await client.GetFromJsonAsync<List<ExpenseResponse>>(
+            $"/api/expenses/recent?today={clientToday:yyyy-MM-dd}", JsonOptions, ct);
+
+        Assert.NotNull(list);
+        var ids = list.Select(e => e.Id).ToHashSet();
+        Assert.Contains(onClientToday, ids);
+        Assert.DoesNotContain(tooOld, ids);
+    }
+
+    [Fact]
+    public async Task Should_return_400_problem_details_when_recent_today_cannot_be_parsed()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/expenses/recent?today=not-a-date", ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions, ct);
+        Assert.True(problem.GetProperty("errors").TryGetProperty("today", out _));
+    }
+
+    [Fact]
+    public async Task Should_return_400_problem_details_when_recent_today_is_too_early_for_window()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/expenses/recent?today=0001-01-03", ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions, ct);
+        Assert.True(problem.GetProperty("errors").TryGetProperty("today", out _));
+    }
+
     private static async Task<Guid> CreateExpenseAsync(
         HttpClient client,
         CreateExpenseRequest request,
