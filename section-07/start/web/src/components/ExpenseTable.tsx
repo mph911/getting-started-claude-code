@@ -14,6 +14,13 @@ function formatDate(value: string): string {
   return dateFormatter.format(new Date(year, month - 1, day));
 }
 
+function todayIso(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
 function byDateDescending(a: Expense, b: Expense): number {
   if (a.date === b.date) {
     return b.createdAt.localeCompare(a.createdAt);
@@ -27,6 +34,8 @@ export function ExpenseTable() {
   const [recent, setRecent] = useState(false);
   const fromRef = useRef<HTMLInputElement>(null);
 
+  const today = todayIso();
+  const futureDate = from > today || to > today;
   const invalidRange = from !== "" && to !== "" && from > to;
   const hasFilter = recent || from !== "" || to !== "";
 
@@ -63,11 +72,17 @@ export function ExpenseTable() {
       recent
         ? listRecentExpenses(signal)
         : listExpenses({ from: from || undefined, to: to || undefined }, signal),
-    enabled: !invalidRange,
+    enabled: !invalidRange && !futureDate,
   });
 
   let content;
-  if (invalidRange) {
+  if (futureDate) {
+    content = (
+      <p className={`${styles.status} ${styles.error}`} role="alert">
+        Dates can’t be in the future.
+      </p>
+    );
+  } else if (invalidRange) {
     content = (
       <p className={`${styles.status} ${styles.error}`} role="alert">
         “From” must be on or before “To”.
@@ -135,7 +150,7 @@ export function ExpenseTable() {
               type="date"
               aria-label="From date"
               value={from}
-              max={to || undefined}
+              max={to && to < today ? to : today}
               disabled={recent}
               onClick={(event) => openPicker(event.currentTarget)}
               onChange={(event) => setRange({ from: event.target.value })}
@@ -146,6 +161,7 @@ export function ExpenseTable() {
               aria-label="To date"
               value={to}
               min={from || undefined}
+              max={today}
               disabled={recent}
               onClick={(event) => openPicker(event.currentTarget)}
               onChange={(event) => setRange({ to: event.target.value })}
