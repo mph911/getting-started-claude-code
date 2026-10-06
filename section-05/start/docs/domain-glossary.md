@@ -13,7 +13,8 @@ An Expense is **immutable once created**: there is no edit or delete endpoint. I
 | Field         | Type             | Meaning                                                                                                  |
 | ------------- | ---------------- | -------------------------------------------------------------------------------------------------------- |
 | `Id`          | `Guid`           | Stable identifier. Generated client-side on the domain object, never reused.                             |
-| `Amount`      | `decimal(18, 2)` | How much was spent, in the user's implicit currency (see *Currency*). Always **positive**.               |
+| `Amount`      | `decimal(18, 2)` | How much was spent, in the Expense's `Currency`. Always **positive**.                                    |
+| `Currency`    | `string`         | ISO 4217 code, `character(3)`. One of `EUR`, `USD`, `GBP`. Defaults to `EUR` (see *Currency*).          |
 | `Description` | `string`         | Free-text label, 1–200 chars, trimmed. Required.                                                         |
 | `Date`        | `DateOnly`       | The **spent-on** date — when the money left the user's pocket. Not when the row was entered.             |
 | `CreatedAt`   | `DateTimeOffset` | When the row was inserted, in UTC. Set by Postgres (`now() at time zone 'utc'`), never assigned in C#.   |
@@ -35,7 +36,9 @@ There is no concept of debit/credit or sign: every Expense is a spend. Refunds, 
 
 ## Currency
 
-Currently **implicit and single-currency**. The schema has no currency column; the app assumes the user tracks expenses in one currency and is responsible for not mixing. When a multi-currency feature is needed, treat it as a schema change (add `Currency` as ISO 4217 on `Expense`) rather than overloading `Description`.
+Every Expense carries an explicit **ISO 4217** `Currency` code, stored as `character(3)`. The allowed set is deliberately small — `EUR`, `USD`, `GBP` (`Domain/Currencies.cs`). On create, `currency` is optional and defaults to `EUR`; supplied values are trimmed and upper-cased, and anything outside the allowed set (including empty strings) is rejected with a validation problem. Rows created before the column existed were backfilled to `EUR`.
+
+There are **no exchange rates, conversions, or cross-currency totals**. An `Amount` is only meaningful together with its `Currency`; never sum or compare amounts across currencies.
 
 ## Description
 

@@ -2,9 +2,8 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createExpense, type CreateExpenseInput } from "../api/expenses";
 import { CURRENCIES, DEFAULT_CURRENCY, type Currency } from "../lib/currency";
+import { localToday as today } from "../lib/date";
 import styles from "./ExpenseForm.module.css";
-
-const today = () => new Date().toISOString().slice(0, 10);
 
 export function ExpenseForm() {
   const queryClient = useQueryClient();

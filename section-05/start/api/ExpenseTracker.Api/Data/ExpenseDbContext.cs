@@ -16,6 +16,11 @@ public sealed class ExpenseDbContext(DbContextOptions<ExpenseDbContext> options)
         expense.Property(e => e.Amount)
             .HasPrecision(18, 2);
 
+        expense.Property(e => e.Currency)
+            .IsRequired()
+            .HasMaxLength(3)
+            .IsFixedLength();
+
         expense.Property(e => e.Description)
             .IsRequired()
             .HasMaxLength(200);

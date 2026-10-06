@@ -37,6 +37,12 @@ namespace ExpenseTracker.Api.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("(now() at time zone 'utc')");
 
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character(3)")
+                        .IsFixedLength();
+
                     b.Property<DateOnly>("Date")
                         .HasColumnType("date");
 

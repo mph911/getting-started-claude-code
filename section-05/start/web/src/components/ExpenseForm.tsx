@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createExpense, type CreateExpenseInput } from "../api/expenses";
+import { CURRENCIES, DEFAULT_CURRENCY, currencySymbol, type Currency } from "../lib/currency";
 import styles from "./ExpenseForm.module.css";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -8,6 +9,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 export function ExpenseForm() {
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState<Currency>(DEFAULT_CURRENCY);
   const [description, setDescription] = useState("");
   const [date, setDate] = useState(today);
   const [clientError, setClientError] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export function ExpenseForm() {
     }
 
     setClientError(null);
-    mutation.mutate({ amount: parsedAmount, description: trimmed, date });
+    mutation.mutate({ amount: parsedAmount, currency, description: trimmed, date });
   }
 
   const errorMessage = clientError ?? (mutation.error instanceof Error ? mutation.error.message : null);
@@ -66,6 +68,14 @@ export function ExpenseForm() {
             onChange={(event) => setAmount(event.target.value)}
             required
           />
+        </label>
+        <label className={styles.field}>
+          <span>Currency</span>
+          <select value={currency} onChange={(event) => setCurrency(event.target.value as Currency)}>
+            {CURRENCIES.map((code) => (
+              <option key={code} value={code}>{`${code} (${currencySymbol(code)})`}</option>
+            ))}
+          </select>
         </label>
         <label className={styles.field}>
           <span>Description</span>

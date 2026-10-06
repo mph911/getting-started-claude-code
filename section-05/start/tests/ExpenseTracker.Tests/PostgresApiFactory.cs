@@ -18,6 +18,8 @@ public sealed class PostgresApiFactory : WebApplicationFactory<IApiAssemblyMarke
         .WithPassword("expenses")
         .Build();
 
+    public string ConnectionString => _postgres.GetConnectionString();
+
     public async ValueTask InitializeAsync()
     {
         await _postgres.StartAsync();
@@ -43,7 +45,7 @@ public sealed class PostgresApiFactory : WebApplicationFactory<IApiAssemblyMarke
             services.RemoveAll<DbContextOptions<ExpenseDbContext>>();
 
             services.AddDbContext<ExpenseDbContext>(options =>
-                options.UseNpgsql(_postgres.GetConnectionString()));
+                options.UseNpgsql(ConnectionString));
         });
     }
 }

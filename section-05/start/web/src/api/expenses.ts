@@ -1,6 +1,10 @@
+import type { Currency } from "../lib/currency";
+
 export interface Expense {
   id: string;
   amount: number;
+  // The API owns the allowed set; don't narrow what it returns to the SPA's copy.
+  currency: string;
   description: string;
   date: string;
   createdAt: string;
@@ -8,6 +12,7 @@ export interface Expense {
 
 export interface CreateExpenseInput {
   amount: number;
+  currency: Currency;
   description: string;
   date: string;
 }

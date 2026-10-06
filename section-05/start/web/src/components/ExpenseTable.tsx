@@ -55,7 +55,7 @@ export function ExpenseTable() {
           <tr key={expense.id}>
             <td>{formatDate(expense.date)}</td>
             <td>{expense.description}</td>
-            <td className={styles.amount}>{formatCurrency(expense.amount)}</td>
+            <td className={styles.amount}>{formatCurrency(expense.amount, expense.currency)}</td>
           </tr>
         ))}
       </tbody>

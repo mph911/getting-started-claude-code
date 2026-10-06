@@ -28,6 +28,7 @@ public sealed class ExpenseApiTests(PostgresApiFactory factory)
         var created = await response.Content.ReadFromJsonAsync<ExpenseResponse>(JsonOptions, ct);
         Assert.NotNull(created);
         Assert.Equal(payload.Amount, created.Amount);
+        Assert.Equal("EUR", created.Currency);
         Assert.Equal(payload.Description, created.Description);
         Assert.Equal(payload.Date, created.Date);
         Assert.NotEqual(Guid.Empty, created.Id);
@@ -75,5 +76,82 @@ public sealed class ExpenseApiTests(PostgresApiFactory factory)
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions, ct);
         var errors = problem.GetProperty("errors");
         Assert.True(errors.TryGetProperty("Description", out _));
+    }
+
+    [Fact]
+    public async Task Should_default_currency_to_EUR_when_currency_is_omitted()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = factory.CreateClient();
+        // Anonymous payload so the "currency" key is absent from the JSON, not just null.
+        var payload = new { Amount = 4.20m, Description = "Bus ticket", Date = "2026-04-01" };
+
+        var created = await PostCreatedAsync(client, payload, ct);
+
+        await AssertStoredCurrencyAsync(client, created, "EUR", ct);
+    }
+
+    [Theory]
+    [InlineData(null, "EUR")]
+    [InlineData("EUR", "EUR")]
+    [InlineData("USD", "USD")]
+    [InlineData("GBP", "GBP")]
+    [InlineData(" usd ", "USD")]
+    public async Task Should_store_normalized_currency_when_posting_allowed_code(string? currency, string expected)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = factory.CreateClient();
+        var payload = new CreateExpenseRequest(15m, "Lunch", new DateOnly(2026, 4, 2), currency);
+
+        var created = await PostCreatedAsync(client, payload, ct);
+
+        await AssertStoredCurrencyAsync(client, created, expected, ct);
+    }
+
+    [Theory]
+    [InlineData("JPY")]
+    [InlineData("EURO")]
+    [InlineData("XX")]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Should_return_400_problem_details_when_currency_is_not_allowed(string currency)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = factory.CreateClient();
+        var payload = new CreateExpenseRequest(10m, "Souvenir", new DateOnly(2026, 4, 4), currency);
+
+        var response = await client.PostAsJsonAsync("/api/expenses", payload, ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions, ct);
+        var errors = problem.GetProperty("errors");
+        Assert.True(errors.TryGetProperty("Currency", out var currencyErrors));
+        Assert.Equal("Currency must be one of: EUR, USD, GBP.", currencyErrors[0].GetString());
+    }
+
+    private static async Task<ExpenseResponse> PostCreatedAsync(HttpClient client, object payload, CancellationToken ct)
+    {
+        var response = await client.PostAsJsonAsync("/api/expenses", payload, ct);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var created = await response.Content.ReadFromJsonAsync<ExpenseResponse>(JsonOptions, ct);
+        Assert.NotNull(created);
+        return created;
+    }
+
+    private static async Task AssertStoredCurrencyAsync(
+        HttpClient client, ExpenseResponse created, string expected, CancellationToken ct)
+    {
+        Assert.Equal(expected, created.Currency);
+
+        var fetched = await client.GetFromJsonAsync<ExpenseResponse>($"/api/expenses/{created.Id}", JsonOptions, ct);
+        Assert.NotNull(fetched);
+        Assert.Equal(expected, fetched.Currency);
+
+        var listed = await client.GetFromJsonAsync<List<ExpenseResponse>>("/api/expenses", JsonOptions, ct);
+        Assert.NotNull(listed);
+        Assert.Equal(expected, Assert.Single(listed, e => e.Id == created.Id).Currency);
     }
 }
