@@ -15,6 +15,7 @@ public static class ExpenseEndpoints
         group.MapPost("/", CreateAsync);
         group.MapGet("/", ListAsync);
         group.MapGet("/recent", ListRecentAsync);
+        group.MapGet("/monthly-totals", ListMonthlyTotalsAsync);
         group.MapGet("/{id:guid}", GetByIdAsync);
 
         return routes;
@@ -169,6 +170,38 @@ public static class ExpenseEndpoints
             .ToListAsync(cancellationToken);
 
         return Results.Ok(expenses);
+    }
+
+    // Grouped by spent-on month and Currency: amounts in different currencies are never summed.
+    private static async Task<IResult> ListMonthlyTotalsAsync(
+        ExpenseDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var totals = await db.Expenses
+            .AsNoTracking()
+            .GroupBy(e => new { e.Date.Year, e.Date.Month, e.Currency })
+            .Select(g => new
+            {
+                g.Key.Year,
+                g.Key.Month,
+                g.Key.Currency,
+                Total = g.Sum(e => e.Amount),
+                Count = g.Count(),
+            })
+            .OrderByDescending(t => t.Year)
+            .ThenByDescending(t => t.Month)
+            .ThenBy(t => t.Currency)
+            .ToListAsync(cancellationToken);
+
+        var response = totals
+            .Select(t => new MonthlyTotalResponse(
+                $"{t.Year:D4}-{t.Month:D2}",
+                t.Currency,
+                t.Total,
+                t.Count))
+            .ToList();
+
+        return Results.Ok(response);
     }
 
     private static DateOnly? ParseDateFilter(string? value, string field, Dictionary<string, string[]> errors)

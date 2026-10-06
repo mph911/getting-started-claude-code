@@ -17,6 +17,14 @@ export interface CreateExpenseInput {
   currency: Currency;
 }
 
+export interface MonthlyTotal {
+  /** `YYYY-MM` */
+  month: string;
+  currency: string;
+  total: number;
+  count: number;
+}
+
 export interface ExpenseFilters {
   from?: string;
   to?: string;
@@ -57,6 +65,14 @@ export async function listRecentExpenses(signal?: AbortSignal): Promise<Expense[
     throw new Error(await readError(response));
   }
   return (await response.json()) as Expense[];
+}
+
+export async function listMonthlyTotals(signal?: AbortSignal): Promise<MonthlyTotal[]> {
+  const response = await fetch(`${ENDPOINT}/monthly-totals`, { signal });
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  return (await response.json()) as MonthlyTotal[];
 }
 
 export async function createExpense(input: CreateExpenseInput): Promise<Expense> {

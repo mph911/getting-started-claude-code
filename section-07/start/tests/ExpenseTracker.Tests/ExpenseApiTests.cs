@@ -289,6 +289,46 @@ public sealed class ExpenseApiTests(PostgresApiFactory factory)
         Assert.True(problem.GetProperty("errors").TryGetProperty("today", out _));
     }
 
+    [Fact]
+    public async Task Should_return_totals_per_month_and_currency_when_listing_monthly_totals()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = factory.CreateClient();
+        // Months far from other tests' dates, since the database is shared across the assembly.
+        await CreateExpenseAsync(client, new(10.25m, "Totals March EUR a", new DateOnly(2041, 3, 1), "EUR"), ct);
+        await CreateExpenseAsync(client, new(4.75m, "Totals March EUR b", new DateOnly(2041, 3, 31), "EUR"), ct);
+        await CreateExpenseAsync(client, new(8m, "Totals March USD", new DateOnly(2041, 3, 15), "USD"), ct);
+        await CreateExpenseAsync(client, new(3m, "Totals April EUR", new DateOnly(2041, 4, 1), "EUR"), ct);
+
+        var totals = await client.GetFromJsonAsync<List<MonthlyTotalResponse>>(
+            "/api/expenses/monthly-totals", JsonOptions, ct);
+
+        Assert.NotNull(totals);
+        var in2041 = totals.Where(t => t.Month.StartsWith("2041-")).ToList();
+        Assert.Equal(
+            [
+                new MonthlyTotalResponse("2041-04", "EUR", 3m, 1),
+                new MonthlyTotalResponse("2041-03", "EUR", 15m, 2),
+                new MonthlyTotalResponse("2041-03", "USD", 8m, 1),
+            ],
+            in2041);
+    }
+
+    [Fact]
+    public async Task Should_return_monthly_totals_newest_month_first()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = factory.CreateClient();
+        await CreateExpenseAsync(client, new(1m, "Totals order", new DateOnly(2026, 1, 20)), ct);
+
+        var totals = await client.GetFromJsonAsync<List<MonthlyTotalResponse>>(
+            "/api/expenses/monthly-totals", JsonOptions, ct);
+
+        Assert.NotNull(totals);
+        var months = totals.Select(t => t.Month).ToList();
+        Assert.Equal(months.OrderByDescending(m => m, StringComparer.Ordinal), months);
+    }
+
     private static async Task<Guid> CreateExpenseAsync(
         HttpClient client,
         CreateExpenseRequest request,

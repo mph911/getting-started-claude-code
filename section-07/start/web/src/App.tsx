@@ -1,5 +1,6 @@
 import { ExpenseForm } from "./components/ExpenseForm";
 import { ExpenseTable } from "./components/ExpenseTable";
+import { MonthlyTotals } from "./components/MonthlyTotals";
 import styles from "./App.module.css";
 
 export function App() {
@@ -11,6 +12,9 @@ export function App() {
       </header>
       <section className={styles.section}>
         <ExpenseForm />
+      </section>
+      <section className={styles.section}>
+        <MonthlyTotals />
       </section>
       <section className={styles.section}>
         <ExpenseTable />
