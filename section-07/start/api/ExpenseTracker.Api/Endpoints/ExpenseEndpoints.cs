@@ -98,8 +98,11 @@ public static class ExpenseEndpoints
     {
         var errors = new Dictionary<string, string[]>();
 
-        var fromDate = ParseDateFilter(from, "from", errors);
-        var toDate = ParseDateFilter(to, "to", errors);
+        // Date is the user's local calendar date, which can be up to one day ahead of UTC.
+        var latestAllowed = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(1);
+
+        var fromDate = ParseDateFilter(from, "from", latestAllowed, errors);
+        var toDate = ParseDateFilter(to, "to", latestAllowed, errors);
 
         if (fromDate is { } f && toDate is { } t && f > t)
         {
@@ -152,20 +155,30 @@ public static class ExpenseEndpoints
         return Results.Ok(expenses);
     }
 
-    private static DateOnly? ParseDateFilter(string? value, string field, Dictionary<string, string[]> errors)
+    private static DateOnly? ParseDateFilter(
+        string? value,
+        string field,
+        DateOnly latestAllowed,
+        Dictionary<string, string[]> errors)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
             return null;
         }
 
-        if (DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+        if (!DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
         {
-            return parsed;
+            errors[field] = [$"{field} must be a valid date in YYYY-MM-DD format."];
+            return null;
         }
 
-        errors[field] = [$"{field} must be a valid date in YYYY-MM-DD format."];
-        return null;
+        if (parsed > latestAllowed)
+        {
+            errors[field] = [$"{field} must not be in the future."];
+            return null;
+        }
+
+        return parsed;
     }
 
     private static ExpenseResponse ToResponse(Expense e) =>

@@ -151,6 +151,37 @@ public sealed class ExpenseApiTests(PostgresApiFactory factory)
         Assert.True(errors.TryGetProperty("from", out _));
     }
 
+    [Theory]
+    [InlineData("from")]
+    [InlineData("to")]
+    public async Task Should_return_400_problem_details_when_date_filter_is_in_the_future(string field)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = factory.CreateClient();
+        var future = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(2).ToString("yyyy-MM-dd");
+
+        var response = await client.GetAsync($"/api/expenses?{field}={future}", ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>(JsonOptions, ct);
+        var errors = problem.GetProperty("errors");
+        Assert.True(errors.TryGetProperty(field, out _));
+    }
+
+    [Fact]
+    public async Task Should_accept_today_as_date_filter()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var client = factory.CreateClient();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd");
+
+        var response = await client.GetAsync($"/api/expenses?from={today}&to={today}", ct);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
     [Fact]
     public async Task Should_return_only_expenses_from_the_last_7_days_when_listing_recent()
     {
